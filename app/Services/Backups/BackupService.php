@@ -478,9 +478,26 @@ class BackupService
 
             // Built beside the package and moved into place in one step, so
             // the listing never shows a half-written archive.
-            $tar = new PharData($work.'/archive.tar');
-            $tar->buildFromDirectory($pkg);
-            unset($tar);
+            $previousDirectory = getcwd();
+            $packageDirectory = realpath($pkg);
+            
+            if ($previousDirectory === false || $packageDirectory === false) {
+                throw new RuntimeException('Cannot resolve backup directories.');
+            }
+            
+            if (! chdir($work)) {
+                throw new RuntimeException("Cannot enter backup directory {$work}.");
+            }
+            
+            try {
+                $tar = new PharData('archive.tar');
+                $tar->buildFromDirectory($packageDirectory);
+                unset($tar);
+            } finally {
+                if (! chdir($previousDirectory)) {
+                    throw new RuntimeException('Cannot restore working directory.');
+                }
+            }
 
             if (! rename($work.'/archive.tar', $path)) {
                 throw new RuntimeException("Could not write {$path}.");
